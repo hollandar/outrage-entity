@@ -56,7 +56,7 @@ namespace Outrage.Entities
             }
         }
 
-        public void Mutate<TEntity>(long entityId, UpdateRef<TEntity> updateAction) where TEntity : struct
+        public void Mutate<TEntity>(long entityId, UpdateRef<TEntity>? updateAction = null) where TEntity : struct
         {
             LayerRef<TEntity>? typedLayer;
             if (layers.TryGetValue(typeof(TEntity), out ILayerRef? layer))
@@ -81,7 +81,7 @@ namespace Outrage.Entities
             }
         }
 
-        public void MutateAllSet<TEntity>(UpdateRef<TEntity> updateAction) where TEntity : struct
+        public void MutateAllSet<TEntity>(UpdateRef<TEntity>? updateAction = null) where TEntity : struct
         {
             LayerRef<TEntity>? typedLayer;
             if (layers.TryGetValue(typeof(TEntity), out ILayerRef? layer))
@@ -109,6 +109,80 @@ namespace Outrage.Entities
                     }
                 }
                 else throw new Exception("MutateAll entities exception.");
+            }
+        }
+        
+        public void MutateAllSetWith<TEntity, TEntityWith>(UpdateRef<TEntity>? updateAction = null) where TEntity : struct where TEntityWith : struct
+        {
+            
+            LayerRef<TEntity>? typedLayer;
+            if (layers.TryGetValue(typeof(TEntity), out ILayerRef? layer))
+            {
+                typedLayer = layer as LayerRef<TEntity>;
+                if (typedLayer != null)
+                {
+                    foreach (var entityId in QueryEntitiesWith<TEntityWith>())
+                    {
+                        if (Has<TEntity>(entityId))
+                        {
+                            typedLayer.Layer.Update(entityId, updateAction);
+                            typedLayer.MarkSet(entityId);
+                        }
+                    }
+                }
+                else throw new Exception("MutateAll entities exception.");
+            }
+            else
+            {
+                layers[typeof(TEntity)] = typedLayer = new LayerRef<TEntity>(layerCapacity, capacityStep);
+                if (typedLayer != null)
+                {
+                    foreach (var entityId in QueryEntitiesWith<TEntityWith>())
+                    {
+                        if (Has<TEntity>(entityId))
+                        {
+                            typedLayer.Layer.Update(entityId, updateAction);
+                            typedLayer.MarkSet(entityId);
+                        }
+                    }
+                }
+                else throw new Exception("MutateAll entities exception.");
+            }
+        }
+
+        public void MutateSet<TEntity>(IEnumerable<long> entityIds, UpdateRef<TEntity>? updateAction = null) where TEntity : struct
+        {
+            LayerRef<TEntity>? typedLayer;
+            if (layers.TryGetValue(typeof(TEntity), out ILayerRef? layer))
+            {
+                typedLayer = layer as LayerRef<TEntity>;
+                if (typedLayer != null)
+                {
+                    foreach (var entityId in entityIds)
+                    {
+                        if (Has<TEntity>(entityId)) { 
+                            if (updateAction != null) typedLayer.Layer.Update(entityId, updateAction);
+                            typedLayer.MarkSet(entityId);
+                        }
+                    }
+                }
+                else throw new Exception("MutateSet entities exception.");
+            }
+            else
+            {
+                layers[typeof(TEntity)] = typedLayer = new LayerRef<TEntity>(layerCapacity, capacityStep);
+                if (typedLayer != null)
+                {
+                    foreach (var entityId in entityIds)
+                    {
+                        if (Has<TEntity>(entityId))
+                        {
+                            typedLayer.Layer.Update(entityId, updateAction);
+                            typedLayer.MarkSet(entityId);
+                        }
+                    }
+                }
+                else throw new Exception("MutateSet entities exception.");
             }
         }
 
@@ -119,6 +193,15 @@ namespace Outrage.Entities
             foreach (var layerref in layers)
             {
                 layerref.Value.MarkSet(entityId, false);
+            }
+        }
+
+        public void Clear<TEntity>(long entityId) where TEntity: struct
+        {
+            ILayerRef? layerRef;
+            if (layers.TryGetValue(typeof(TEntity), out layerRef))
+            {
+                layerRef.MarkSet(entityId, false);
             }
         }
 

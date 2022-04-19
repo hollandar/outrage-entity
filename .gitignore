@@ -1,4 +1,6 @@
 .vs/
-TestResults/
+/TestResults/
 bin/
 obj/
+/output/
+.nuke/temp/

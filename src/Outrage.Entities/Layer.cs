@@ -33,7 +33,7 @@
             return layer[ix.y];
         }
         
-        public void Update(long entityId, UpdateRef<TEntity> updateAction)
+        public void Update(long entityId, UpdateRef<TEntity>? updateAction)
         {
             var ix = GetIndex(entityId);
             var layer = layers[ix.x];
@@ -41,7 +41,8 @@
             {
                 layers[ix.x] = layer = new TEntity[this.capacityStep];
             }
-            updateAction(entityId, ref layer[ix.y]);
+            if (updateAction != null)
+                updateAction(entityId, ref layer[ix.y]);
         }
     }
 }

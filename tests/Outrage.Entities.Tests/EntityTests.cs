@@ -184,5 +184,58 @@ namespace Outrage.Entities.Tests
             GC.Collect();
             Assert.AreEqual(tam2, GC.GetTotalAllocatedBytes());
         }
+
+        [TestMethod]
+        public void MarkerProperty()
+        {
+            var entitySet = new EntitySet();
+            var entityId = entitySet.ReserveEntityId();
+            entitySet.Mutate<NPCMarker>(entityId);
+            entitySet.Mutate<Health>(entityId, (long id, ref Health health) => {
+                health.Value = 100;
+            });
+
+            entitySet.MutateAllSetWith<Health, NPCMarker>((long id, ref Health health) => {
+                health.Value += 1;
+            });
+
+            var health = entitySet.Get<Health>(entityId);
+            Assert.AreEqual(101, health.Value);
+        }
+        
+        [TestMethod]
+        public void MarkerPropertyQuery()
+        {
+            var entitySet = new EntitySet();
+            var entityId = entitySet.ReserveEntityId();
+            entitySet.Mutate<NPCMarker>(entityId);
+            entitySet.Mutate<Health>(entityId, (long id, ref Health health) => {
+                health.Value = 100;
+            });
+
+            var npcEntities = entitySet.QueryEntitiesWith<NPCMarker>();
+            entitySet.MutateSet<Health>(npcEntities, (long id, ref Health health) => {
+                health.Value += 1;
+            });
+
+            var health = entitySet.Get<Health>(entityId);
+            Assert.AreEqual(101, health.Value);
+        }
+        
+        [TestMethod]
+        public void ClearMarkerProperty()
+        {
+            var entitySet = new EntitySet();
+            var entityId = entitySet.ReserveEntityId();
+            entitySet.Mutate<NPCMarker>(entityId);
+            entitySet.Mutate<Health>(entityId, (long id, ref Health health) => {
+                health.Value = 100;
+            });
+
+            entitySet.Clear<NPCMarker>(entityId);
+
+            var npcEntities = entitySet.QueryEntitiesWith<NPCMarker>();
+            Assert.AreEqual(0, npcEntities.Count());
+        }
     }
 }
