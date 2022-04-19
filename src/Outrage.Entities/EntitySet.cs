@@ -10,6 +10,11 @@ namespace Outrage.Entities
         HashSet<long> clearedEntities;
         long lastEntityId = 0;
 
+        /// <summary>
+        /// Construct an entity set
+        /// </summary>
+        /// <param name="layerCapacity">Maximum number of layers in the entity set</param>
+        /// <param name="capacityStep">Number of entities in each layer, and the increment of allocation as entities grow</param>
         public EntitySet(int layerCapacity = 1000, int capacityStep = 1000)
         {
             this.layerCapacity = layerCapacity;
@@ -18,9 +23,20 @@ namespace Outrage.Entities
             this.clearedEntities = new HashSet<long>(capacityStep);
         }
 
+        /// <summary>
+        /// The total number of active entities in the entity set
+        /// </summary>
         public long Count => lastEntityId - this.clearedEntities.Count;
+
+        /// <summary>
+        /// The total capacity of the entity set, capacity can not be adjusted at runtime
+        /// </summary>
         public long Capacity => layerCapacity * capacityStep;
 
+        /// <summary>
+        /// Reserve an entity id, or reuse an existing entity that has been released (Clear)
+        /// </summary>
+        /// <returns>next entity id</returns>
         public long ReserveEntityId()
         {
             if (clearedEntities.Count == 0)
@@ -34,15 +50,23 @@ namespace Outrage.Entities
             }
         }
 
-        public TEntity Get<TEntity>(long entityId) where TEntity : struct
+        /// <summary>
+        /// Get the property of an entity
+        /// </summary>
+        /// <typeparam name="TProperty">The struct that stores related properties of the entity</typeparam>
+        /// <param name="entityId">entity id</param>
+        /// <returns>the current value of the property</returns>
+        /// <exception cref="EntityUndefinedException">The entity is unset</exception>
+        /// <exception cref="Exception">Unexpected.</exception>
+        public TProperty Get<TProperty>(long entityId) where TProperty : struct
         {
             if (entityId >= lastEntityId || this.clearedEntities.Contains(entityId))
                 throw new EntityUndefinedException();
 
-            LayerRef<TEntity>? typedLayer;
-            if (layers.TryGetValue(typeof(TEntity), out ILayerRef? layer))
+            LayerRef<TProperty>? typedLayer;
+            if (layers.TryGetValue(typeof(TProperty), out ILayerRef? layer))
             {
-                typedLayer = layer as LayerRef<TEntity>;
+                typedLayer = layer as LayerRef<TProperty>;
                 if (typedLayer != null)
                 {
                     return typedLayer.Layer.Get(entityId);
@@ -51,17 +75,24 @@ namespace Outrage.Entities
             }
             else
             {
-                layers[typeof(TEntity)] = typedLayer = new LayerRef<TEntity>(layerCapacity, capacityStep);
+                layers[typeof(TProperty)] = typedLayer = new LayerRef<TProperty>(layerCapacity, capacityStep);
                 return typedLayer.Layer.Get(entityId);
             }
         }
 
-        public void Mutate<TEntity>(long entityId, UpdateRef<TEntity>? updateAction = null) where TEntity : struct
+        /// <summary>
+        /// Mutate the value of a property of the entity, and mark it as set if it isnt already
+        /// </summary>
+        /// <typeparam name="TProperty">The type of property being mutated.</typeparam>
+        /// <param name="entityId">entity id</param>
+        /// <param name="updateAction">action to perform the changes</param>
+        /// <exception cref="Exception">Unexpected.</exception>
+        public void Mutate<TProperty>(long entityId, UpdateRef<TProperty>? updateAction = null) where TProperty : struct
         {
-            LayerRef<TEntity>? typedLayer;
-            if (layers.TryGetValue(typeof(TEntity), out ILayerRef? layer))
+            LayerRef<TProperty>? typedLayer;
+            if (layers.TryGetValue(typeof(TProperty), out ILayerRef? layer))
             {
-                typedLayer = layer as LayerRef<TEntity>;
+                typedLayer = layer as LayerRef<TProperty>;
                 if (typedLayer != null)
                 {
                     typedLayer.Layer.Update(entityId, updateAction);
@@ -71,7 +102,7 @@ namespace Outrage.Entities
             }
             else
             {
-                layers[typeof(TEntity)] = typedLayer = new LayerRef<TEntity>(layerCapacity, capacityStep);
+                layers[typeof(TProperty)] = typedLayer = new LayerRef<TProperty>(layerCapacity, capacityStep);
                 if (typedLayer != null)
                 {
                     typedLayer.Layer.Update(entityId, updateAction);
@@ -81,12 +112,18 @@ namespace Outrage.Entities
             }
         }
 
-        public void MutateAllSet<TEntity>(UpdateRef<TEntity>? updateAction = null) where TEntity : struct
+        /// <summary>
+        /// Mutate all entities with a propery marked as set
+        /// </summary>
+        /// <typeparam name="TProperty">The property to mutate</typeparam>
+        /// <param name="updateAction">Action to use for the mutation</param>
+        /// <exception cref="Exception">Unexpected.</exception>
+        public void MutateAllSet<TProperty>(UpdateRef<TProperty>? updateAction = null) where TProperty : struct
         {
-            LayerRef<TEntity>? typedLayer;
-            if (layers.TryGetValue(typeof(TEntity), out ILayerRef? layer))
+            LayerRef<TProperty>? typedLayer;
+            if (layers.TryGetValue(typeof(TProperty), out ILayerRef? layer))
             {
-                typedLayer = layer as LayerRef<TEntity>;
+                typedLayer = layer as LayerRef<TProperty>;
                 if (typedLayer != null)
                 {
                     foreach (var entityId in typedLayer.SetEntities)
@@ -99,7 +136,7 @@ namespace Outrage.Entities
             }
             else
             {
-                layers[typeof(TEntity)] = typedLayer = new LayerRef<TEntity>(layerCapacity, capacityStep);
+                layers[typeof(TProperty)] = typedLayer = new LayerRef<TProperty>(layerCapacity, capacityStep);
                 if (typedLayer != null)
                 {
                     foreach (var entityId in typedLayer.SetEntities)
@@ -112,18 +149,25 @@ namespace Outrage.Entities
             }
         }
         
-        public void MutateAllSetWith<TEntity, TEntityWith>(UpdateRef<TEntity>? updateAction = null) where TEntity : struct where TEntityWith : struct
+        /// <summary>
+        /// Mutate all entities that have a related property
+        /// </summary>
+        /// <typeparam name="TProperty">The property to mutate</typeparam>
+        /// <typeparam name="TWithProperty">Mutate all entities that also have this property set</typeparam>
+        /// <param name="updateAction">The action to perform the update</param>
+        /// <exception cref="Exception">Unexpected.</exception>
+        public void MutateAllSetWith<TProperty, TWithProperty>(UpdateRef<TProperty>? updateAction = null) where TProperty : struct where TWithProperty : struct
         {
             
-            LayerRef<TEntity>? typedLayer;
-            if (layers.TryGetValue(typeof(TEntity), out ILayerRef? layer))
+            LayerRef<TProperty>? typedLayer;
+            if (layers.TryGetValue(typeof(TProperty), out ILayerRef? layer))
             {
-                typedLayer = layer as LayerRef<TEntity>;
+                typedLayer = layer as LayerRef<TProperty>;
                 if (typedLayer != null)
                 {
-                    foreach (var entityId in QueryEntitiesWith<TEntityWith>())
+                    foreach (var entityId in QueryEntitiesWith<TWithProperty>())
                     {
-                        if (Has<TEntity>(entityId))
+                        if (Has<TProperty>(entityId))
                         {
                             typedLayer.Layer.Update(entityId, updateAction);
                             typedLayer.MarkSet(entityId);
@@ -134,12 +178,12 @@ namespace Outrage.Entities
             }
             else
             {
-                layers[typeof(TEntity)] = typedLayer = new LayerRef<TEntity>(layerCapacity, capacityStep);
+                layers[typeof(TProperty)] = typedLayer = new LayerRef<TProperty>(layerCapacity, capacityStep);
                 if (typedLayer != null)
                 {
-                    foreach (var entityId in QueryEntitiesWith<TEntityWith>())
+                    foreach (var entityId in QueryEntitiesWith<TWithProperty>())
                     {
-                        if (Has<TEntity>(entityId))
+                        if (Has<TProperty>(entityId))
                         {
                             typedLayer.Layer.Update(entityId, updateAction);
                             typedLayer.MarkSet(entityId);
@@ -150,17 +194,24 @@ namespace Outrage.Entities
             }
         }
 
-        public void MutateSet<TEntity>(IEnumerable<long> entityIds, UpdateRef<TEntity>? updateAction = null) where TEntity : struct
+        /// <summary>
+        /// Mutate properties of a list of entities, but only where the property is already set.
+        /// </summary>
+        /// <typeparam name="TProperty">The property to mutate.</typeparam>
+        /// <param name="entityIds">A list of entities to potentially mutate</param>
+        /// <param name="updateAction">Action to perform on the entity property</param>
+        /// <exception cref="Exception">Unexpected.</exception>
+        public void MutateSet<TProperty>(IEnumerable<long> entityIds, UpdateRef<TProperty>? updateAction = null) where TProperty : struct
         {
-            LayerRef<TEntity>? typedLayer;
-            if (layers.TryGetValue(typeof(TEntity), out ILayerRef? layer))
+            LayerRef<TProperty>? typedLayer;
+            if (layers.TryGetValue(typeof(TProperty), out ILayerRef? layer))
             {
-                typedLayer = layer as LayerRef<TEntity>;
+                typedLayer = layer as LayerRef<TProperty>;
                 if (typedLayer != null)
                 {
                     foreach (var entityId in entityIds)
                     {
-                        if (Has<TEntity>(entityId)) { 
+                        if (Has<TProperty>(entityId)) { 
                             if (updateAction != null) typedLayer.Layer.Update(entityId, updateAction);
                             typedLayer.MarkSet(entityId);
                         }
@@ -170,12 +221,12 @@ namespace Outrage.Entities
             }
             else
             {
-                layers[typeof(TEntity)] = typedLayer = new LayerRef<TEntity>(layerCapacity, capacityStep);
+                layers[typeof(TProperty)] = typedLayer = new LayerRef<TProperty>(layerCapacity, capacityStep);
                 if (typedLayer != null)
                 {
                     foreach (var entityId in entityIds)
                     {
-                        if (Has<TEntity>(entityId))
+                        if (Has<TProperty>(entityId))
                         {
                             typedLayer.Layer.Update(entityId, updateAction);
                             typedLayer.MarkSet(entityId);
@@ -186,6 +237,11 @@ namespace Outrage.Entities
             }
         }
 
+        /// <summary>
+        /// Clear an entity
+        /// This does not modify properties or unallocate anything
+        /// </summary>
+        /// <param name="entityId">entity id to release</param>
         public void Clear(long entityId)
         {
             this.clearedEntities.Add(entityId);
@@ -196,19 +252,29 @@ namespace Outrage.Entities
             }
         }
 
-        public void Clear<TEntity>(long entityId) where TEntity: struct
+        /// <summary>
+        /// Clear a property from an entity
+        /// </summary>
+        /// <typeparam name="TProperty">The property to unset</typeparam>
+        /// <param name="entityId">entity id</param>
+        public void Clear<TProperty>(long entityId) where TProperty: struct
         {
             ILayerRef? layerRef;
-            if (layers.TryGetValue(typeof(TEntity), out layerRef))
+            if (layers.TryGetValue(typeof(TProperty), out layerRef))
             {
                 layerRef.MarkSet(entityId, false);
             }
         }
 
-        public IEnumerable<long> QueryEntitiesWith<TEntity>() where TEntity : struct
+        /// <summary>
+        /// Get a list of entities that have a specific property
+        /// </summary>
+        /// <typeparam name="TProperty">The property to query for</typeparam>
+        /// <returns>A list of entity ids</returns>
+        public IEnumerable<long> QueryEntitiesWith<TProperty>() where TProperty : struct
         {
             ILayerRef? layerRef;
-            if (layers.TryGetValue(typeof(TEntity), out layerRef))
+            if (layers.TryGetValue(typeof(TProperty), out layerRef))
             {
                 return layerRef.SetEntities;
             }
@@ -216,10 +282,16 @@ namespace Outrage.Entities
             return Enumerable.Empty<long>();
         }
 
-        public bool Has<TEntity>(long entityId) where TEntity : struct
+        /// <summary>
+        /// Test if an entity has a property set
+        /// </summary>
+        /// <typeparam name="TProperty">The property of interest</typeparam>
+        /// <param name="entityId">entity id</param>
+        /// <returns>true if the property is set on the entity</returns>
+        public bool Has<TProperty>(long entityId) where TProperty : struct
         {
             ILayerRef? layerRef;
-            if (layers.TryGetValue(typeof(TEntity), out layerRef))
+            if (layers.TryGetValue(typeof(TProperty), out layerRef))
             {
                 return layerRef.IsSet(entityId);
             }

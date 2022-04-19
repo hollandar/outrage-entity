@@ -237,5 +237,25 @@ namespace Outrage.Entities.Tests
             var npcEntities = entitySet.QueryEntitiesWith<NPCMarker>();
             Assert.AreEqual(0, npcEntities.Count());
         }
+
+        [TestMethod]
+        public void Count()
+        {
+            var entitySet = new EntitySet();
+            var entityId1 = entitySet.ReserveEntityId();
+            entitySet.Mutate<NPCMarker>(entityId1);
+            entitySet.Mutate<Health>(entityId1, (long id, ref Health health) => {
+                health.Value = 100;
+            });
+
+            var entityId2 = entitySet.ReserveEntityId();
+            entitySet.Mutate<NPCMarker>(entityId2);
+
+            Assert.AreEqual(2, entitySet.Count);
+            entitySet.Clear(entityId1);
+            Assert.AreEqual(1, entitySet.Count);
+            entitySet.Clear(entityId2);
+            Assert.AreEqual(0, entitySet.Count);
+        }
     }
 }

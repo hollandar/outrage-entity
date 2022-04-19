@@ -1,6 +1,6 @@
 # Outrage.Entities
 
-A .Net Core entity layer which stores data about entities, contained in structs.  Any entity may have one or more structs that describe aspects of an entities definition set.
+A .Net Core entity layer which stores data about entities, contained in structs.  Any entity may have one or more structs that describe aspects of its definition.
 
 Memory for the EntitySet is allocated as a block, and is not destroyed as entities are recycled, leading to little or no Garbage Collection cycles during regular operation.
 
