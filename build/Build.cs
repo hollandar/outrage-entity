@@ -67,7 +67,6 @@ class Build : NukeBuild
         .Executes(() => {
             DotNetTest(s => s
                 .SetProjectFile(Solution.GetProject("Outrage.Entities.Tests"))
-                .sjp
                 );
         });
 
