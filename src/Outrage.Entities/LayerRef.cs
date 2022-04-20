@@ -19,7 +19,7 @@
             this.setEntities = new HashSet<long>(capacityStep);
         }
 
-        public IEnumerable<long> SetEntities => setEntities.AsEnumerable();
+        public IEnumerable<long> SetEntities => setEntities;
 
         /// <summary>
         /// Mark the property in this layer as being set
@@ -35,6 +35,25 @@
             else
             {
                 this.setEntities.Remove(entityId);
+            }
+        }
+
+        /// <summary>
+        /// Mark properties in this layer as being set
+        /// </summary>
+        /// <param name="entityIds">Entity ids to mark</param>
+        /// <param name="set">Mark as set (default) or unset</param>
+        public void MarkSet(IEnumerable<long> entityIds, bool set = true)
+        {
+            if (set)
+            {
+                foreach (var entityId in entityIds)
+                    this.setEntities.Add(entityId);
+            }
+            else
+            {
+                foreach (var entityId in entityIds)
+                    this.setEntities.Remove(entityId);
             }
         }
 

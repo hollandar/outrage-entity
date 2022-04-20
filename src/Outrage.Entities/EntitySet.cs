@@ -126,11 +126,11 @@ namespace Outrage.Entities
                 typedLayer = layer as LayerRef<TProperty>;
                 if (typedLayer != null)
                 {
-                    foreach (var entityId in typedLayer.SetEntities)
+                    typedLayer.SetEntities.AsParallel().ForAll(r =>
                     {
-                        typedLayer.Layer.Update(entityId, updateAction);
-                        typedLayer.MarkSet(entityId);
-                    }
+                        typedLayer.Layer.Update(r, updateAction);
+                        typedLayer.MarkSet(r);
+                    });
                 }
                 else throw new Exception("MutateAll entities exception.");
             }
@@ -139,16 +139,16 @@ namespace Outrage.Entities
                 layers[typeof(TProperty)] = typedLayer = new LayerRef<TProperty>(layerCapacity, capacityStep);
                 if (typedLayer != null)
                 {
-                    foreach (var entityId in typedLayer.SetEntities)
+                    typedLayer.SetEntities.AsParallel().ForAll(r =>
                     {
-                        typedLayer.Layer.Update(entityId, updateAction);
-                        typedLayer.MarkSet(entityId);
-                    }
+                        typedLayer.Layer.Update(r, updateAction);
+                        typedLayer.MarkSet(r);
+                    });
                 }
                 else throw new Exception("MutateAll entities exception.");
             }
         }
-        
+
         /// <summary>
         /// Mutate all entities that have a related property
         /// </summary>
@@ -158,21 +158,21 @@ namespace Outrage.Entities
         /// <exception cref="Exception">Unexpected.</exception>
         public void MutateAllSetWith<TProperty, TWithProperty>(UpdateRef<TProperty>? updateAction = null) where TProperty : struct where TWithProperty : struct
         {
-            
+
             LayerRef<TProperty>? typedLayer;
             if (layers.TryGetValue(typeof(TProperty), out ILayerRef? layer))
             {
                 typedLayer = layer as LayerRef<TProperty>;
                 if (typedLayer != null)
                 {
-                    foreach (var entityId in QueryEntitiesWith<TWithProperty>())
+                    QueryEntitiesWith<TWithProperty>().AsParallel().ForAll(entityId =>
                     {
                         if (Has<TProperty>(entityId))
                         {
                             typedLayer.Layer.Update(entityId, updateAction);
                             typedLayer.MarkSet(entityId);
                         }
-                    }
+                    });
                 }
                 else throw new Exception("MutateAll entities exception.");
             }
@@ -181,14 +181,14 @@ namespace Outrage.Entities
                 layers[typeof(TProperty)] = typedLayer = new LayerRef<TProperty>(layerCapacity, capacityStep);
                 if (typedLayer != null)
                 {
-                    foreach (var entityId in QueryEntitiesWith<TWithProperty>())
+                    QueryEntitiesWith<TWithProperty>().AsParallel().ForAll(entityId =>
                     {
                         if (Has<TProperty>(entityId))
                         {
                             typedLayer.Layer.Update(entityId, updateAction);
                             typedLayer.MarkSet(entityId);
                         }
-                    }
+                    });
                 }
                 else throw new Exception("MutateAll entities exception.");
             }
@@ -209,13 +209,14 @@ namespace Outrage.Entities
                 typedLayer = layer as LayerRef<TProperty>;
                 if (typedLayer != null)
                 {
-                    foreach (var entityId in entityIds)
+                    entityIds.AsParallel().ForAll(entityId =>
                     {
-                        if (Has<TProperty>(entityId)) { 
+                        if (Has<TProperty>(entityId))
+                        {
                             if (updateAction != null) typedLayer.Layer.Update(entityId, updateAction);
                             typedLayer.MarkSet(entityId);
                         }
-                    }
+                    });
                 }
                 else throw new Exception("MutateSet entities exception.");
             }
@@ -224,17 +225,33 @@ namespace Outrage.Entities
                 layers[typeof(TProperty)] = typedLayer = new LayerRef<TProperty>(layerCapacity, capacityStep);
                 if (typedLayer != null)
                 {
-                    foreach (var entityId in entityIds)
+                    entityIds.AsParallel().ForAll(entityId =>
                     {
                         if (Has<TProperty>(entityId))
                         {
-                            typedLayer.Layer.Update(entityId, updateAction);
+                            if (updateAction != null) typedLayer.Layer.Update(entityId, updateAction);
                             typedLayer.MarkSet(entityId);
                         }
-                    }
+                    });
                 }
                 else throw new Exception("MutateSet entities exception.");
             }
+        }
+
+        /// <summary>
+        /// Clear a number of entities
+        /// This does not modify properties or unallocate anything
+        /// </summary>
+        /// <param name="entityIds">entity ids to release</param>
+        public void Clear(IEnumerable<long> entityIds)
+        {
+            foreach (var entityId in entityIds)
+                this.clearedEntities.Add(entityId);
+
+            layers.AsParallel().ForAll(layer =>
+            {
+                layer.Value.MarkSet(entityIds, false);
+            });
         }
 
         /// <summary>
@@ -257,7 +274,7 @@ namespace Outrage.Entities
         /// </summary>
         /// <typeparam name="TProperty">The property to unset</typeparam>
         /// <param name="entityId">entity id</param>
-        public void Clear<TProperty>(long entityId) where TProperty: struct
+        public void Clear<TProperty>(long entityId) where TProperty : struct
         {
             ILayerRef? layerRef;
             if (layers.TryGetValue(typeof(TProperty), out layerRef))
