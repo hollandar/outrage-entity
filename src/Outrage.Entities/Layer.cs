@@ -132,7 +132,7 @@
         {
             foreach (var entityId in entityIds)
             {
-                MarkUnset(entityIds);
+                MarkUnset(entityId);
             }
         }
 
