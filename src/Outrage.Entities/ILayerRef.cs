@@ -1,10 +1,11 @@
 ﻿namespace Outrage.Entities
 {
-    internal interface ILayerRef
+    internal interface ILayer
     {
         IEnumerable<long> SetEntities { get; }
         bool IsSet(long entityId);
-        void MarkSet(long entityId, bool set = true);
-        void MarkSet(IEnumerable<long> entityId, bool set = true);
+        void MarkUnset(IEnumerable<long> entityId);
+        void MarkUnset(long entityId);
+        IEnumerable<long> QuerySet();
     }
 }

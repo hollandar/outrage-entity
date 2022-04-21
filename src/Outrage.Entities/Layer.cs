@@ -1,10 +1,25 @@
 ﻿namespace Outrage.Entities
 {
-    internal class Layer<TProperty> where TProperty : struct
+
+    internal struct Property<TProperty> where TProperty : struct
+    {
+        public bool IsSet;
+        public TProperty Value;
+
+        public Property()
+        {
+            this.IsSet = false;
+            this.Value = default(TProperty);
+        }
+    }
+
+    internal class Layer<TProperty> : ILayer where TProperty : struct
     {
         int layerCount;
         int capacityStep;
-        TProperty[][] layers;
+        Property<TProperty>[][] layers;
+
+        public IEnumerable<long> SetEntities => throw new NotImplementedException();
 
         /// <summary>
         /// Construct a layer
@@ -15,7 +30,7 @@
         {
             this.layerCount = layerCount;
             this.capacityStep = capacityStep;
-            layers = new TProperty[layerCount][];
+            layers = new Property<TProperty>[layerCount][];
         }
 
         /// <summary>
@@ -44,11 +59,12 @@
             var layer = layers[ix.x];
             if (layer == null)
             {
-                layers[ix.x] = layer = new TProperty[this.capacityStep];
+                layers[ix.x] = layer = new Property<TProperty>[this.capacityStep];
             }
-            return layer[ix.y];
+
+            return layer[ix.y].Value;
         }
-        
+
         /// <summary>
         /// Perform an update action against an entity in this layer
         /// </summary>
@@ -60,10 +76,71 @@
             var layer = layers[ix.x];
             if (layer == null)
             {
-                layers[ix.x] = layer = new TProperty[this.capacityStep];
+                layers[ix.x] = layer = new Property<TProperty>[this.capacityStep];
             }
+            if (!layer[ix.y].IsSet) layer[ix.y].IsSet = true;
             if (updateAction != null)
-                updateAction(entityId, ref layer[ix.y]);
+            {
+                updateAction(entityId, ref layer[ix.y].Value);
+            }
+        }
+
+        public void UpdateSet(UpdateRef<TProperty> updateAction)
+        {
+            for (int layerIndex = 0; layerIndex < layers.Length; layerIndex++)
+            {
+                if (layers[layerIndex] != null)
+                {
+                    int layerLength = layers[layerIndex].Length;
+                    for (int propertyIndex = 0; propertyIndex < layerLength; propertyIndex++)
+                    {
+                        if (layers[layerIndex][propertyIndex].IsSet)
+                        {
+                            updateAction((layerIndex * capacityStep) + propertyIndex, ref layers[layerIndex][propertyIndex].Value);
+                        }
+                    }
+                }
+            }
+        }
+
+        public IEnumerable<long> QuerySet()
+        {
+            for (int layerIndex = 0; layerIndex < layers.Length; layerIndex++)
+            {
+                if (layers[layerIndex] != null)
+                {
+                    int layerLength = layers[layerIndex].Length;
+                    for (int propertyIndex = 0; propertyIndex < layerLength; propertyIndex++)
+                    {
+                        if (layers[layerIndex][propertyIndex].IsSet)
+                            yield return (layerIndex * capacityStep) + propertyIndex;
+                    }
+                }
+            }
+        }
+
+        public bool IsSet(long entityId)
+        {
+            var ix = GetIndex(entityId);
+            if (layers[ix.x] != null)
+                return layers[ix.x][ix.y].IsSet;
+
+            return false;
+        }
+
+        public void MarkUnset(IEnumerable<long> entityIds)
+        {
+            foreach (var entityId in entityIds)
+            {
+                MarkUnset(entityIds);
+            }
+        }
+
+        public void MarkUnset(long entityId)
+        {
+            var ix = GetIndex(entityId);
+            if (layers[ix.x] != null)
+                layers[ix.x][ix.y].IsSet = false;
         }
     }
 }

@@ -98,8 +98,10 @@ public class EntityTests
         Assert.IsTrue(entities.Has<Health>(entityId2));
         Assert.IsFalse(entities.Has<Strength>(entityId2));
 
-        Assert.IsTrue(Enumerable.SequenceEqual(entities.QueryEntitiesWith<Strength>(), new long[] { entityId1 }));
-        Assert.IsTrue(Enumerable.SequenceEqual(entities.QueryEntitiesWith<Health>(), new long[] { entityId2 }));
+        var withStrength = entities.QueryEntitiesWith<Strength>();
+        Assert.IsTrue(Enumerable.SequenceEqual(withStrength, new long[] { entityId1 }));
+        var withHealth = entities.QueryEntitiesWith<Health>();
+        Assert.IsTrue(Enumerable.SequenceEqual(withHealth, new long[] { entityId2 }));
     }
 
     [TestMethod]
