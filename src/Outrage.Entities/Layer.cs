@@ -85,14 +85,39 @@
             }
         }
 
+        /// <summary>
+        /// Perform an update action against an entity in this layer
+        /// </summary>
+        /// <param name="entityId">entityId</param>
+        /// <param name="updateAction">update action</param>
+        public void UpdateIfSet(long entityId, UpdateRef<TProperty>? updateAction)
+        {
+            var ix = GetIndex(entityId);
+            var layer = layers[ix.x];
+            if (layer == null)
+                return;
+
+            if (layer[ix.y].IsSet)
+            {
+                if (updateAction != null)
+                {
+                    updateAction(entityId, ref layer[ix.y].Value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Update properties that are marked with the set flag
+        /// </summary>
+        /// <param name="updateAction">Action to apply</param>
         public void UpdateSet(UpdateRef<TProperty> updateAction)
         {
-            for (int layerIndex = 0; layerIndex < layers.Length; layerIndex++)
+            for (var layerIndex = 0; layerIndex < layers.Length; layerIndex++)
             {
                 if (layers[layerIndex] != null)
                 {
                     int layerLength = layers[layerIndex].Length;
-                    for (int propertyIndex = 0; propertyIndex < layerLength; propertyIndex++)
+                    for (var propertyIndex = 0; propertyIndex < layerLength; propertyIndex++)
                     {
                         if (layers[layerIndex][propertyIndex].IsSet)
                         {
@@ -103,6 +128,10 @@
             }
         }
 
+        /// <summary>
+        /// Query for properties marked with the set flag
+        /// </summary>
+        /// <returns>list of entity ids</returns>
         public IEnumerable<long> QuerySet()
         {
             for (int layerIndex = 0; layerIndex < layers.Length; layerIndex++)
@@ -119,6 +148,11 @@
             }
         }
 
+        /// <summary>
+        /// Test if an entity id is set
+        /// </summary>
+        /// <param name="entityId">entity id to test</param>
+        /// <returns>list of entity ids</returns>
         public bool IsSet(long entityId)
         {
             var ix = GetIndex(entityId);
@@ -128,14 +162,22 @@
             return false;
         }
 
+        /// <summary>
+        /// Mark a number of entity ids as unset
+        /// </summary>
+        /// <param name="entityIds">list of entity ids</param>
         public void MarkUnset(IEnumerable<long> entityIds)
         {
-            foreach (var entityId in entityIds)
+            entityIds.AsParallel().ForAll((entityId) =>
             {
                 MarkUnset(entityId);
-            }
+            });
         }
 
+        /// <summary>
+        /// Mark an individual entity id as unset
+        /// </summary>
+        /// <param name="entityId">entity id</param>
         public void MarkUnset(long entityId)
         {
             var ix = GetIndex(entityId);

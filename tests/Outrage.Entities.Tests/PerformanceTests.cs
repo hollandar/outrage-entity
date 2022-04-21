@@ -107,20 +107,70 @@ public class PerformanceTests
             entitySet.Clear(thousandEntities);
 
             // Reinstate and reinitialize one thousand of them
-            for (var i = 0; i < 1000; i++)
+            var newEntityIds = entitySet.ReserveEntityIds(1000);
+            entitySet.Mutate<Position>(newEntityIds, (long id, ref Position position) =>
             {
-                var entityId = entitySet.ReserveEntityId();
-                entitySet.Mutate<Position>(entityId, (long id, ref Position position) =>
-                {
-                    position.X = 0;
-                    position.Y = 0;
-                });
-            }
-
+                position.X = 0;
+                position.Y = 0;
+            });
         }
 
         var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done in {millisecondsTaken} milliseconds.");
+
+        var perFrameSpeed = millisecondsTaken / 1000;
+        var frameRate = 1000 / perFrameSpeed;
+
+        Console.WriteLine($"Effective frame rate: {frameRate} per second.\n");
+    }
+
+    [TestMethod]
+    public void CreateDropCreate()
+    {
+        Random random = new Random();
+        var entitySet = new EntitySet();
+
+        BuildEntities(entitySet);
+
+        Console.WriteLine($"Mutating {entitySet.Count} entitys, with recreation...");
+        var startMutating = DateTimeOffset.UtcNow;
+
+        // Mutate all the entities
+        entitySet.MutateAllSet<Position>((long id, ref Position position) =>
+        {
+            var moveDirection = random.Next(0, 4);
+            switch (moveDirection)
+            {
+                case 0: position.Y += 1; break;
+                case 1: position.X += 1; break;
+                case 2: position.Y -= 1; break;
+                case 4: position.X -= 1; break;
+            }
+        });
+
+        var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
+        Console.WriteLine($"Done mutating in {millisecondsTaken} milliseconds.");
+        
+        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(1000);
+        startMutating = DateTimeOffset.UtcNow;
+
+        // Drop one thousand of them;
+        entitySet.Clear(thousandEntities);
+
+        millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
+        Console.WriteLine($"Done clearing in {millisecondsTaken} milliseconds.");
+        startMutating = DateTimeOffset.UtcNow;
+
+        // Reinstate and reinitialize one thousand of them
+        var newEntityIds = entitySet.ReserveEntityIds(1000);
+        entitySet.Mutate<Position>(newEntityIds, (long id, ref Position position) =>
+        {
+            position.X = 0;
+            position.Y = 0;
+        });
+
+        millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
+        Console.WriteLine($"Done recreating in {millisecondsTaken} milliseconds.");
 
         var perFrameSpeed = millisecondsTaken / 1000;
         var frameRate = 1000 / perFrameSpeed;

@@ -15,7 +15,7 @@ namespace Outrage.Entities
         /// </summary>
         /// <param name="layerCapacity">Maximum number of layers in the entity set</param>
         /// <param name="capacityStep">Number of entities in each layer, and the increment of allocation as entities grow</param>
-        public EntitySet(int layerCapacity = 1000, int capacityStep = 1000)
+        public EntitySet(int layerCapacity = 2048, int capacityStep = 512)
         {
             this.layerCapacity = layerCapacity;
             this.capacityStep = capacityStep;
@@ -48,6 +48,29 @@ namespace Outrage.Entities
 
                 return result;
             }
+        }
+
+        /// <summary>
+        /// Reserve a number of entity ids
+        /// </summary>
+        /// <param name="count">count of ids to reserve</param>
+        /// <returns>a list of new ids</returns>
+        public IEnumerable<long> ReserveEntityIds(int count)
+        {
+            HashSet<long> reservedIds = new HashSet<long>(count);
+            while (this.clearedEntities.Count > 0 && reservedIds.Count < count)
+            {
+                var id = this.clearedEntities.First();
+                reservedIds.Add(id);
+                this.clearedEntities.Remove(id);
+            }
+
+            while (reservedIds.Count < count)
+            {
+                reservedIds.Add(lastEntityId++);
+            }
+
+            return reservedIds;
         }
 
         /// <summary>
@@ -153,10 +176,7 @@ namespace Outrage.Entities
                 {
                     setIndexes.AsParallel().ForAll(entityId =>
                     {
-                        if (Has<TProperty>(entityId))
-                        {
-                            typedLayer.Update(entityId, updateAction);
-                        }
+                        typedLayer.UpdateIfSet(entityId, updateAction);
                     });
                 }
                 else throw new Exception("MutateAll entities exception.");
@@ -168,10 +188,7 @@ namespace Outrage.Entities
                 {
                     setIndexes.AsParallel().ForAll(entityId =>
                     {
-                        if (Has<TProperty>(entityId))
-                        {
-                            typedLayer.Update(entityId, updateAction);
-                        }
+                        typedLayer.UpdateIfSet(entityId, updateAction);
                     });
                 }
                 else throw new Exception("MutateAll entities exception.");
@@ -195,10 +212,7 @@ namespace Outrage.Entities
                 {
                     entityIds.AsParallel().ForAll(entityId =>
                     {
-                        if (Has<TProperty>(entityId))
-                        {
-                            if (updateAction != null) typedLayer.Update(entityId, updateAction);
-                        }
+                        typedLayer.UpdateIfSet(entityId, updateAction);
                     });
                 }
                 else throw new Exception("MutateSet entities exception.");
@@ -210,16 +224,48 @@ namespace Outrage.Entities
                 {
                     entityIds.AsParallel().ForAll(entityId =>
                     {
-                        if (Has<TProperty>(entityId))
-                        {
-                            if (updateAction != null) typedLayer.Update(entityId, updateAction);
-                        }
+                        typedLayer.UpdateIfSet(entityId, updateAction);
                     });
                 }
                 else throw new Exception("MutateSet entities exception.");
             }
         }
 
+        /// <summary>
+        /// Mutate properties of a list of entities, but only where the property is already set.
+        /// </summary>
+        /// <typeparam name="TProperty">The property to mutate.</typeparam>
+        /// <param name="entityIds">A list of entities to potentially mutate</param>
+        /// <param name="updateAction">Action to perform on the entity property</param>
+        /// <exception cref="Exception">Unexpected.</exception>
+        public void Mutate<TProperty>(IEnumerable<long> entityIds, UpdateRef<TProperty>? updateAction = null) where TProperty : struct
+        {
+            Layer<TProperty>? typedLayer;
+            if (layers.TryGetValue(typeof(TProperty), out ILayer? layer))
+            {
+                typedLayer = layer as Layer<TProperty>;
+                if (typedLayer != null)
+                {
+                    entityIds.AsParallel().ForAll(entityId =>
+                    {
+                        typedLayer.Update(entityId, updateAction);
+                    });
+                }
+                else throw new Exception("MutateSet entities exception.");
+            }
+            else
+            {
+                layers[typeof(TProperty)] = typedLayer = new Layer<TProperty>(layerCapacity, capacityStep);
+                if (typedLayer != null)
+                {
+                    entityIds.AsParallel().ForAll(entityId =>
+                    {
+                        typedLayer.Update(entityId, updateAction);
+                    });
+                }
+                else throw new Exception("MutateSet entities exception.");
+            }
+        }
         /// <summary>
         /// Clear a number of entities
         /// This does not modify properties or unallocate anything
