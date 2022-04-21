@@ -208,7 +208,7 @@ public class PerformanceTests
     }
 
     [TestMethod]
-    public void CreateDropCreate()
+    public void CreateDropCreateSequential()
     {
         Random random = new Random();
         var entitySet = new EntitySet();
@@ -229,7 +229,7 @@ public class PerformanceTests
                 case 2: position.Y -= 1; break;
                 case 4: position.X -= 1; break;
             }
-        });
+        }, false);
 
         var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done mutating in {millisecondsTaken} milliseconds.");
@@ -238,7 +238,7 @@ public class PerformanceTests
         startMutating = DateTimeOffset.UtcNow;
 
         // Drop one thousand of them;
-        entitySet.Clear(thousandEntities);
+        entitySet.Clear(thousandEntities, false);
 
         millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done clearing in {millisecondsTaken} milliseconds.");
@@ -250,7 +250,61 @@ public class PerformanceTests
         {
             position.X = 0;
             position.Y = 0;
-        });
+        }, false);
+
+        millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
+        Console.WriteLine($"Done recreating in {millisecondsTaken} milliseconds.");
+
+        var perFrameSpeed = millisecondsTaken / 1000;
+        var frameRate = 1000 / perFrameSpeed;
+
+        Console.WriteLine($"Effective frame rate: {frameRate} per second.\n");
+    }
+    
+    [TestMethod]
+    public void CreateDropCreateParallel()
+    {
+        Random random = new Random();
+        var entitySet = new EntitySet();
+
+        BuildEntities(entitySet);
+
+        Console.WriteLine($"Mutating {entitySet.Count} entitys, with recreation...");
+        var startMutating = DateTimeOffset.UtcNow;
+
+        // Mutate all the entities
+        entitySet.MutateAllSet<Position>((long id, ref Position position) =>
+        {
+            var moveDirection = random.Next(0, 4);
+            switch (moveDirection)
+            {
+                case 0: position.Y += 1; break;
+                case 1: position.X += 1; break;
+                case 2: position.Y -= 1; break;
+                case 4: position.X -= 1; break;
+            }
+        }, true);
+
+        var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
+        Console.WriteLine($"Done mutating in {millisecondsTaken} milliseconds.");
+        
+        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(1000);
+        startMutating = DateTimeOffset.UtcNow;
+
+        // Drop one thousand of them;
+        entitySet.Clear(thousandEntities, true);
+
+        millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
+        Console.WriteLine($"Done clearing in {millisecondsTaken} milliseconds.");
+        startMutating = DateTimeOffset.UtcNow;
+
+        // Reinstate and reinitialize one thousand of them
+        var newEntityIds = entitySet.ReserveEntityIds(1000);
+        entitySet.Mutate<Position>(newEntityIds, (long id, ref Position position) =>
+        {
+            position.X = 0;
+            position.Y = 0;
+        }, true);
 
         millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done recreating in {millisecondsTaken} milliseconds.");

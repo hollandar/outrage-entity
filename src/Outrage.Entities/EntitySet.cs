@@ -148,7 +148,7 @@ namespace Outrage.Entities
                 if (typedLayer != null)
                 {
                     if (parallel)
-                        typedLayer.QuerySet().AsParallel().ForAll(entityId => typedLayer.Update(entityId, updateAction));
+                        typedLayer.UpdateSetParallel(updateAction);
                     else
                         typedLayer.UpdateSet(updateAction);
                 }

@@ -129,6 +129,33 @@
         }
 
         /// <summary>
+        /// Update properties that are marked with the set flag
+        /// </summary>
+        /// <param name="updateAction">Action to apply</param>
+        public void UpdateSetParallel(UpdateRef<TProperty> updateAction)
+        {
+            List<(long x, long y)> entities = new List<(long, long)>(layerCount * capacityStep);
+            for (var layerIndex = 0; layerIndex < layers.Length; layerIndex++)
+            {
+                if (layers[layerIndex] != null)
+                {
+                    int layerLength = layers[layerIndex].Length;
+                    for (var propertyIndex = 0; propertyIndex < layerLength; propertyIndex++)
+                    {
+                        if (layers[layerIndex][propertyIndex].IsSet)
+                        {
+                            entities.Add((layerIndex, propertyIndex));
+                        }
+                    }
+                }
+            }
+
+            entities.AsParallel().ForAll(ix => { 
+                updateAction((ix.x * capacityStep) + ix.y, ref layers[ix.x][ix.y].Value); 
+            });
+        }
+
+        /// <summary>
         /// Query for properties marked with the set flag
         /// </summary>
         /// <returns>list of entity ids</returns>
