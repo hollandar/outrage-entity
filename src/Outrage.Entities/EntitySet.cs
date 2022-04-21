@@ -139,7 +139,7 @@ namespace Outrage.Entities
         /// <typeparam name="TProperty">The property to mutate</typeparam>
         /// <param name="updateAction">Action to use for the mutation</param>
         /// <exception cref="Exception">Unexpected.</exception>
-        public void MutateAllSet<TProperty>(UpdateRef<TProperty> updateAction) where TProperty : struct
+        public void MutateAllSet<TProperty>(UpdateRef<TProperty> updateAction, bool parallel = false) where TProperty : struct
         {
             Layer<TProperty>? typedLayer;
             if (layers.TryGetValue(typeof(TProperty), out ILayer? layer))
@@ -147,7 +147,10 @@ namespace Outrage.Entities
                 typedLayer = layer as Layer<TProperty>;
                 if (typedLayer != null)
                 {
-                    typedLayer.UpdateSet(updateAction);
+                    if (parallel)
+                        typedLayer.QuerySet().AsParallel().ForAll(entityId => typedLayer.Update(entityId, updateAction));
+                    else
+                        typedLayer.UpdateSet(updateAction);
                 }
                 else throw new Exception("MutateAll entities exception.");
             }
@@ -160,12 +163,12 @@ namespace Outrage.Entities
         /// <typeparam name="TWithProperty">Mutate all entities that also have this property set</typeparam>
         /// <param name="updateAction">The action to perform the update</param>
         /// <exception cref="Exception">Unexpected.</exception>
-        public void MutateAllSetWith<TProperty, TWithProperty>(UpdateRef<TProperty>? updateAction = null) where TProperty : struct where TWithProperty : struct
+        public void MutateAllSetWith<TProperty, TWithProperty>(UpdateRef<TProperty>? updateAction = null, bool parallel = false) where TProperty : struct where TWithProperty : struct
         {
-            IEnumerable<long> setIndexes = Enumerable.Empty<long>();
+            IEnumerable<long> setEntityIds = Enumerable.Empty<long>();
             if (layers.TryGetValue(typeof(TWithProperty), out ILayer? withLayer))
             {
-                setIndexes = withLayer.QuerySet();
+                setEntityIds = withLayer.QuerySet();
             }
 
             Layer<TProperty>? typedLayer;
@@ -174,10 +177,20 @@ namespace Outrage.Entities
                 typedLayer = layer as Layer<TProperty>;
                 if (typedLayer != null)
                 {
-                    setIndexes.AsParallel().ForAll(entityId =>
+                    if (parallel)
                     {
-                        typedLayer.UpdateIfSet(entityId, updateAction);
-                    });
+                        setEntityIds.AsParallel().ForAll(entityId =>
+                        {
+                            typedLayer.UpdateIfSet(entityId, updateAction);
+                        });
+                    }
+                    else
+                    {
+                        foreach (var entityId in setEntityIds)
+                        {
+                            typedLayer.UpdateIfSet(entityId, updateAction);
+                        }
+                    }
                 }
                 else throw new Exception("MutateAll entities exception.");
             }
@@ -186,10 +199,20 @@ namespace Outrage.Entities
                 layers[typeof(TProperty)] = typedLayer = new Layer<TProperty>(layerCapacity, capacityStep);
                 if (typedLayer != null)
                 {
-                    setIndexes.AsParallel().ForAll(entityId =>
+                    if (parallel)
                     {
-                        typedLayer.UpdateIfSet(entityId, updateAction);
-                    });
+                        setEntityIds.AsParallel().ForAll(entityId =>
+                        {
+                            typedLayer.UpdateIfSet(entityId, updateAction);
+                        });
+                    }
+                    else
+                    {
+                        foreach (var entityId in setEntityIds)
+                        {
+                            typedLayer.UpdateIfSet(entityId, updateAction);
+                        }
+                    }
                 }
                 else throw new Exception("MutateAll entities exception.");
             }
@@ -202,7 +225,7 @@ namespace Outrage.Entities
         /// <param name="entityIds">A list of entities to potentially mutate</param>
         /// <param name="updateAction">Action to perform on the entity property</param>
         /// <exception cref="Exception">Unexpected.</exception>
-        public void MutateSet<TProperty>(IEnumerable<long> entityIds, UpdateRef<TProperty>? updateAction = null) where TProperty : struct
+        public void MutateSet<TProperty>(IEnumerable<long> entityIds, UpdateRef<TProperty>? updateAction = null, bool parallel = false) where TProperty : struct
         {
             Layer<TProperty>? typedLayer;
             if (layers.TryGetValue(typeof(TProperty), out ILayer? layer))
@@ -210,10 +233,20 @@ namespace Outrage.Entities
                 typedLayer = layer as Layer<TProperty>;
                 if (typedLayer != null)
                 {
-                    entityIds.AsParallel().ForAll(entityId =>
+                    if (parallel)
                     {
-                        typedLayer.UpdateIfSet(entityId, updateAction);
-                    });
+                        entityIds.AsParallel().ForAll(entityId =>
+                        {
+                            typedLayer.UpdateIfSet(entityId, updateAction);
+                        });
+                    }
+                    else
+                    {
+                        foreach (var entityId in entityIds)
+                        {
+                            typedLayer.UpdateIfSet(entityId, updateAction);
+                        }
+                    }
                 }
                 else throw new Exception("MutateSet entities exception.");
             }
@@ -222,10 +255,20 @@ namespace Outrage.Entities
                 layers[typeof(TProperty)] = typedLayer = new Layer<TProperty>(layerCapacity, capacityStep);
                 if (typedLayer != null)
                 {
-                    entityIds.AsParallel().ForAll(entityId =>
+                    if (parallel)
                     {
-                        typedLayer.UpdateIfSet(entityId, updateAction);
-                    });
+                        entityIds.AsParallel().ForAll(entityId =>
+                        {
+                            typedLayer.UpdateIfSet(entityId, updateAction);
+                        });
+                    }
+                    else
+                    {
+                        foreach (var entityId in entityIds)
+                        {
+                            typedLayer.UpdateIfSet(entityId, updateAction);
+                        }
+                    }
                 }
                 else throw new Exception("MutateSet entities exception.");
             }
@@ -238,7 +281,7 @@ namespace Outrage.Entities
         /// <param name="entityIds">A list of entities to potentially mutate</param>
         /// <param name="updateAction">Action to perform on the entity property</param>
         /// <exception cref="Exception">Unexpected.</exception>
-        public void Mutate<TProperty>(IEnumerable<long> entityIds, UpdateRef<TProperty>? updateAction = null) where TProperty : struct
+        public void Mutate<TProperty>(IEnumerable<long> entityIds, UpdateRef<TProperty>? updateAction = null, bool parallel = false) where TProperty : struct
         {
             Layer<TProperty>? typedLayer;
             if (layers.TryGetValue(typeof(TProperty), out ILayer? layer))
@@ -246,10 +289,20 @@ namespace Outrage.Entities
                 typedLayer = layer as Layer<TProperty>;
                 if (typedLayer != null)
                 {
-                    entityIds.AsParallel().ForAll(entityId =>
+                    if (parallel)
                     {
-                        typedLayer.Update(entityId, updateAction);
-                    });
+                        entityIds.AsParallel().ForAll(entityId =>
+                        {
+                            typedLayer.Update(entityId, updateAction);
+                        });
+                    }
+                    else
+                    {
+                        foreach (var entityId in entityIds)
+                        {
+                            typedLayer.Update(entityId, updateAction);
+                        }
+                    }
                 }
                 else throw new Exception("MutateSet entities exception.");
             }
@@ -258,10 +311,20 @@ namespace Outrage.Entities
                 layers[typeof(TProperty)] = typedLayer = new Layer<TProperty>(layerCapacity, capacityStep);
                 if (typedLayer != null)
                 {
-                    entityIds.AsParallel().ForAll(entityId =>
+                    if (parallel)
                     {
-                        typedLayer.Update(entityId, updateAction);
-                    });
+                        entityIds.AsParallel().ForAll(entityId =>
+                        {
+                            typedLayer.Update(entityId, updateAction);
+                        });
+                    }
+                    else
+                    {
+                        foreach (var entityId in entityIds)
+                        {
+                            typedLayer.Update(entityId, updateAction);
+                        }
+                    }
                 }
                 else throw new Exception("MutateSet entities exception.");
             }
@@ -271,15 +334,24 @@ namespace Outrage.Entities
         /// This does not modify properties or unallocate anything
         /// </summary>
         /// <param name="entityIds">entity ids to release</param>
-        public void Clear(IEnumerable<long> entityIds)
+        public void Clear(IEnumerable<long> entityIds, bool parallel = false)
         {
             foreach (var entityId in entityIds)
                 this.clearedEntities.Add(entityId);
 
-            layers.AsParallel().ForAll(layer =>
+            if (parallel)
             {
-                layer.Value.MarkUnset(entityIds);
-            });
+                layers.AsParallel().ForAll(layer =>
+                {
+                    layer.Value.MarkUnset(entityIds);
+                });
+            } else
+            {
+                foreach (var layer in layers)
+                {
+                    layer.Value.MarkUnset(entityIds);
+                }
+            }
         }
 
         /// <summary>
