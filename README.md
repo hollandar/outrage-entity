@@ -105,7 +105,6 @@ It is faster in general to mutate entities as a group, rather than individually.
 It is possible to mark entities using empty structs and then use the properties to make dependent changes, such as the following which will move all NPC characters forward by 1.
 
 ```c#
-
 // A marker struct to identify an entity as a non player character
 struct NPCMarker { }
 
@@ -166,7 +165,6 @@ entities.Mutate<NPCMarker>(entityId);
 
 // Now unmark the entity
 entites.Clear<NPCMarker>(entityId);
-
 ```
 
 * Clear with property - Unset the property on an entity, to remove a property set or to remove a marker property off the entity

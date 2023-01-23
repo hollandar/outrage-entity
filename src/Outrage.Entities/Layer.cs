@@ -1,4 +1,6 @@
-﻿namespace Outrage.Entities
+﻿using System.Net.WebSockets;
+
+namespace Outrage.Entities
 {
 
     internal struct Property<TProperty> where TProperty : struct
@@ -17,6 +19,7 @@
     {
         int layerCount;
         int capacityStep;
+        long upperLayer = 0;
         Property<TProperty>[][] layers;
 
         public IEnumerable<long> SetEntities => throw new NotImplementedException();
@@ -77,6 +80,7 @@
             if (layer == null)
             {
                 layers[ix.x] = layer = new Property<TProperty>[this.capacityStep];
+                upperLayer = upperLayer < ix.x ? ix.x : upperLayer;
             }
             if (!layer[ix.y].IsSet) layer[ix.y].IsSet = true;
             if (updateAction != null)
@@ -134,25 +138,26 @@
         /// <param name="updateAction">Action to apply</param>
         public void UpdateSetParallel(UpdateRef<TProperty> updateAction)
         {
-            List<(long x, long y)> entities = new List<(long, long)>(layerCount * capacityStep);
-            for (var layerIndex = 0; layerIndex < layers.Length; layerIndex++)
+            GetLayerIds().AsParallel().ForAll(layerIndex =>
             {
-                if (layers[layerIndex] != null)
+                var layer = layers[layerIndex];
+                if (layer != null)
                 {
-                    int layerLength = layers[layerIndex].Length;
-                    for (var propertyIndex = 0; propertyIndex < layerLength; propertyIndex++)
+                    for (int i = 0; i < layer.Length; i++)
                     {
-                        if (layers[layerIndex][propertyIndex].IsSet)
+                        if (layer[i].IsSet)
                         {
-                            entities.Add((layerIndex, propertyIndex));
+                            updateAction(layerIndex * i, ref layer[i].Value);
                         }
                     }
                 }
-            }
-
-            entities.AsParallel().ForAll(ix => { 
-                updateAction((ix.x * capacityStep) + ix.y, ref layers[ix.x][ix.y].Value); 
             });
+        }
+
+        private IEnumerable<long> GetLayerIds()
+        {
+            for (long i = 0; i < upperLayer; i++)
+                yield return i;
         }
 
         /// <summary>
