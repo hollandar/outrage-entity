@@ -11,10 +11,14 @@ namespace Outrage.Entities.Tests;
 [TestClass]
 public class PerformanceTests
 {
+    const int CYCLES = 10000;
+    const int ENTITIES = 100000;
+    const int RECREATE_SIZE = 1000;
+    [ThreadStatic] Random random = new Random();
 
     private void BuildEntities(EntitySet entitySet)
     {
-        for (var i = 0; i < 100000; i++)
+        for (var i = 0; i < ENTITIES; i++)
         {
             var entityId = entitySet.ReserveEntityId();
             entitySet.Mutate<Position>(entityId, (long id, ref Position position) =>
@@ -28,7 +32,6 @@ public class PerformanceTests
     [TestMethod]
     public void Creation()
     {
-        Random random = new Random();
         var entitySet = new EntitySet();
 
         {
@@ -44,21 +47,20 @@ public class PerformanceTests
     [TestMethod]
     public void BlockMutationParallel()
     {
-        Random random = new Random();
         var entitySet = new EntitySet();
 
-        var moves = new List<int>(Enumerable.Range(0, 100000).Select(r => random.Next(0, 4)));
 
         BuildEntities(entitySet);
 
-        var cycles = 10000;
+        var cycles = CYCLES;
         Console.WriteLine($"Mutating {entitySet.Count} entitys for {cycles} cycles...");
         var startMutating = DateTimeOffset.UtcNow;
+        var moves = new List<int>(Enumerable.Range(0, ENTITIES).Select(r => random.Next(0, 4)));
         while (cycles-- > 0)
         {
             entitySet.MutateAllSet<Position>((long id, ref Position position) =>
             {
-                var moveDirection = (cycles * id) % moves.Count;
+                var moveDirection = moves[(int)id];
                 switch (moveDirection)
                 {
                     case 0: position.Y += 1; break;
@@ -72,7 +74,7 @@ public class PerformanceTests
         var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done in {millisecondsTaken} milliseconds.\n");
 
-        var perFrameSpeed = millisecondsTaken / 1000;
+        var perFrameSpeed = millisecondsTaken / CYCLES;
         var frameRate = 1000 / perFrameSpeed;
 
         Console.WriteLine($"Effective frame rate: {frameRate} per second.\n");
@@ -81,13 +83,12 @@ public class PerformanceTests
     [TestMethod]
     public void BlockMutationSequential()
     {
-        Random random = new Random();
         var entitySet = new EntitySet();
-        var moves = new List<int>(Enumerable.Range(0, 100000).Select(r => random.Next(0, 4)));
+        var moves = new List<int>(Enumerable.Range(0, ENTITIES).Select(r => random.Next(0, 4)));
 
         BuildEntities(entitySet);
 
-        var cycles = 10000;
+        var cycles = CYCLES;
         Console.WriteLine($"Mutating {entitySet.Count} entitys for {cycles} cycles...");
         var startMutating = DateTimeOffset.UtcNow;
         while (cycles-- > 0)
@@ -108,7 +109,7 @@ public class PerformanceTests
         var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done in {millisecondsTaken} milliseconds.\n");
 
-        var perFrameSpeed = millisecondsTaken / 1000;
+        var perFrameSpeed = millisecondsTaken / CYCLES;
         var frameRate = 1000 / perFrameSpeed;
 
         Console.WriteLine($"Effective frame rate: {frameRate} per second.\n");
@@ -117,13 +118,12 @@ public class PerformanceTests
     [TestMethod]
     public void BlockMutationWithCreationParallel()
     {
-        Random random = new Random();
         var entitySet = new EntitySet();
-        var moves = new List<int>(Enumerable.Range(0, 100000).Select(r => random.Next(0, 4)));
+        var moves = new List<int>(Enumerable.Range(0, ENTITIES).Select(r => random.Next(0, 4)));
 
         BuildEntities(entitySet);
 
-        var cycles = 10000;
+        var cycles = CYCLES;
         Console.WriteLine($"Mutating {entitySet.Count} entitys for {cycles} cycles, with recreation...");
         var startMutating = DateTimeOffset.UtcNow;
         while (cycles-- > 0)
@@ -142,11 +142,11 @@ public class PerformanceTests
             }, true);
 
             // Drop one thousand of them;
-            var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(1000);
+            var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(RECREATE_SIZE);
             entitySet.Clear(thousandEntities, true);
 
             // Reinstate and reinitialize one thousand of them
-            var newEntityIds = entitySet.ReserveEntityIds(1000);
+            var newEntityIds = entitySet.ReserveEntityIds(RECREATE_SIZE);
             entitySet.Mutate<Position>(newEntityIds, (long id, ref Position position) =>
             {
                 position.X = 0;
@@ -157,7 +157,7 @@ public class PerformanceTests
         var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done in {millisecondsTaken} milliseconds.");
 
-        var perFrameSpeed = millisecondsTaken / 1000;
+        var perFrameSpeed = millisecondsTaken / CYCLES;
         var frameRate = 1000 / perFrameSpeed;
 
         Console.WriteLine($"Effective frame rate: {frameRate} per second.\n");
@@ -166,13 +166,12 @@ public class PerformanceTests
     [TestMethod]
     public void BlockMutationWithCreationSequential()
     {
-        Random random = new Random();
         var entitySet = new EntitySet();
-        var moves = new List<int>(Enumerable.Range(0, 100000).Select(r => random.Next(0, 4)));
+        var moves = new List<int>(Enumerable.Range(0, ENTITIES).Select(r => random.Next(0, 4)));
 
         BuildEntities(entitySet);
 
-        var cycles = 10000;
+        var cycles = CYCLES;
         Console.WriteLine($"Mutating {entitySet.Count} entitys for {cycles} cycles, with recreation...");
         var startMutating = DateTimeOffset.UtcNow;
         while (cycles-- > 0)
@@ -191,11 +190,11 @@ public class PerformanceTests
             }, false);
 
             // Drop one thousand of them;
-            var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(1000);
+            var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(RECREATE_SIZE);
             entitySet.Clear(thousandEntities, false);
 
             // Reinstate and reinitialize one thousand of them
-            var newEntityIds = entitySet.ReserveEntityIds(1000);
+            var newEntityIds = entitySet.ReserveEntityIds(RECREATE_SIZE);
             entitySet.Mutate<Position>(newEntityIds, (long id, ref Position position) =>
             {
                 position.X = 0;
@@ -206,7 +205,7 @@ public class PerformanceTests
         var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done in {millisecondsTaken} milliseconds.");
 
-        var perFrameSpeed = millisecondsTaken / 1000;
+        var perFrameSpeed = millisecondsTaken / CYCLES;
         var frameRate = 1000 / perFrameSpeed;
 
         Console.WriteLine($"Effective frame rate: {frameRate} per second.\n");
@@ -215,7 +214,6 @@ public class PerformanceTests
     [TestMethod]
     public void CreateDropCreateSequential()
     {
-        Random random = new Random();
         var entitySet = new EntitySet();
 
         BuildEntities(entitySet);
@@ -238,8 +236,8 @@ public class PerformanceTests
 
         var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done mutating in {millisecondsTaken} milliseconds.");
-        
-        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(1000);
+
+        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(RECREATE_SIZE);
         startMutating = DateTimeOffset.UtcNow;
 
         // Drop one thousand of them;
@@ -250,7 +248,7 @@ public class PerformanceTests
         startMutating = DateTimeOffset.UtcNow;
 
         // Reinstate and reinitialize one thousand of them
-        var newEntityIds = entitySet.ReserveEntityIds(1000);
+        var newEntityIds = entitySet.ReserveEntityIds(RECREATE_SIZE);
         entitySet.Mutate<Position>(newEntityIds, (long id, ref Position position) =>
         {
             position.X = 0;
@@ -260,16 +258,15 @@ public class PerformanceTests
         millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done recreating in {millisecondsTaken} milliseconds.");
 
-        var perFrameSpeed = millisecondsTaken / 1000;
+        var perFrameSpeed = millisecondsTaken / RECREATE_SIZE;
         var frameRate = 1000 / perFrameSpeed;
 
         Console.WriteLine($"Effective frame rate: {frameRate} per second.\n");
     }
-    
+
     [TestMethod]
     public void CreateDropCreateParallel()
     {
-        Random random = new Random();
         var entitySet = new EntitySet();
 
         BuildEntities(entitySet);
@@ -292,8 +289,8 @@ public class PerformanceTests
 
         var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done mutating in {millisecondsTaken} milliseconds.");
-        
-        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(1000);
+
+        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(RECREATE_SIZE);
         startMutating = DateTimeOffset.UtcNow;
 
         // Drop one thousand of them;
@@ -304,7 +301,7 @@ public class PerformanceTests
         startMutating = DateTimeOffset.UtcNow;
 
         // Reinstate and reinitialize one thousand of them
-        var newEntityIds = entitySet.ReserveEntityIds(1000);
+        var newEntityIds = entitySet.ReserveEntityIds(RECREATE_SIZE);
         entitySet.Mutate<Position>(newEntityIds, (long id, ref Position position) =>
         {
             position.X = 0;
@@ -314,7 +311,7 @@ public class PerformanceTests
         millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done recreating in {millisecondsTaken} milliseconds.");
 
-        var perFrameSpeed = millisecondsTaken / 1000;
+        var perFrameSpeed = millisecondsTaken / RECREATE_SIZE;
         var frameRate = 1000 / perFrameSpeed;
 
         Console.WriteLine($"Effective frame rate: {frameRate} per second.\n");

@@ -2,7 +2,7 @@
 
 namespace Outrage.Entities.Tests.Entities;
 
-struct Position
+internal struct Position
 {
     public int X;
     public int Y;
