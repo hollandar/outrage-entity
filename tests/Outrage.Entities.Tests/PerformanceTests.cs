@@ -47,16 +47,18 @@ public class PerformanceTests
         Random random = new Random();
         var entitySet = new EntitySet();
 
+        var moves = new List<int>(Enumerable.Range(0, 100000).Select(r => random.Next(0, 4)));
+
         BuildEntities(entitySet);
 
-        var cycles = 1000;
+        var cycles = 10000;
         Console.WriteLine($"Mutating {entitySet.Count} entitys for {cycles} cycles...");
         var startMutating = DateTimeOffset.UtcNow;
         while (cycles-- > 0)
         {
             entitySet.MutateAllSet<Position>((long id, ref Position position) =>
             {
-                var moveDirection = random.Next(0, 4);
+                var moveDirection = (cycles * id) % moves.Count;
                 switch (moveDirection)
                 {
                     case 0: position.Y += 1; break;
@@ -81,17 +83,18 @@ public class PerformanceTests
     {
         Random random = new Random();
         var entitySet = new EntitySet();
+        var moves = new List<int>(Enumerable.Range(0, 100000).Select(r => random.Next(0, 4)));
 
         BuildEntities(entitySet);
 
-        var cycles = 1000;
+        var cycles = 10000;
         Console.WriteLine($"Mutating {entitySet.Count} entitys for {cycles} cycles...");
         var startMutating = DateTimeOffset.UtcNow;
         while (cycles-- > 0)
         {
             entitySet.MutateAllSet<Position>((long id, ref Position position) =>
             {
-                var moveDirection = random.Next(0, 4);
+                var moveDirection = (cycles * id) % moves.Count;
                 switch (moveDirection)
                 {
                     case 0: position.Y += 1; break;
@@ -116,10 +119,11 @@ public class PerformanceTests
     {
         Random random = new Random();
         var entitySet = new EntitySet();
+        var moves = new List<int>(Enumerable.Range(0, 100000).Select(r => random.Next(0, 4)));
 
         BuildEntities(entitySet);
 
-        var cycles = 1000;
+        var cycles = 10000;
         Console.WriteLine($"Mutating {entitySet.Count} entitys for {cycles} cycles, with recreation...");
         var startMutating = DateTimeOffset.UtcNow;
         while (cycles-- > 0)
@@ -127,7 +131,7 @@ public class PerformanceTests
             // Mutate all the entities
             entitySet.MutateAllSet<Position>((long id, ref Position position) =>
             {
-                var moveDirection = random.Next(0, 4);
+                var moveDirection = (cycles * id) % moves.Count;
                 switch (moveDirection)
                 {
                     case 0: position.Y += 1; break;
@@ -164,10 +168,11 @@ public class PerformanceTests
     {
         Random random = new Random();
         var entitySet = new EntitySet();
+        var moves = new List<int>(Enumerable.Range(0, 100000).Select(r => random.Next(0, 4)));
 
         BuildEntities(entitySet);
 
-        var cycles = 1000;
+        var cycles = 10000;
         Console.WriteLine($"Mutating {entitySet.Count} entitys for {cycles} cycles, with recreation...");
         var startMutating = DateTimeOffset.UtcNow;
         while (cycles-- > 0)
@@ -175,7 +180,7 @@ public class PerformanceTests
             // Mutate all the entities
             entitySet.MutateAllSet<Position>((long id, ref Position position) =>
             {
-                var moveDirection = random.Next(0, 4);
+                var moveDirection = (cycles * id) % moves.Count;
                 switch (moveDirection)
                 {
                     case 0: position.Y += 1; break;
