@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Immutable;
 
 namespace Outrage.Entities
 {
@@ -57,7 +58,8 @@ namespace Outrage.Entities
         /// <returns>a list of new ids</returns>
         public IEnumerable<long> ReserveEntityIds(int count)
         {
-            HashSet<long> reservedIds = new HashSet<long>(count);
+            HashSet<long> reservedIds = new HashSet<long>(count);            
+
             while (this.clearedEntities.Count > 0 && reservedIds.Count < count)
             {
                 var id = this.clearedEntities.First();
@@ -70,7 +72,7 @@ namespace Outrage.Entities
                 reservedIds.Add(lastEntityId++);
             }
 
-            return reservedIds;
+            return reservedIds.ToImmutableSortedSet();
         }
 
         /// <summary>
@@ -168,6 +170,7 @@ namespace Outrage.Entities
             IEnumerable<long> setEntityIds = Enumerable.Empty<long>();
             if (layers.TryGetValue(typeof(TWithProperty), out ILayer? withLayer))
             {
+                // QuerySet is already sorted
                 setEntityIds = withLayer.QuerySet();
             }
 
@@ -179,10 +182,11 @@ namespace Outrage.Entities
                 {
                     if (parallel)
                     {
-                        setEntityIds.AsParallel().ForAll(entityId =>
-                        {
-                            typedLayer.UpdateIfSet(entityId, updateAction);
-                        });
+                        foreach (var group in setEntityIds.GroupBy(r => r / capacityStep))
+                            group.AsParallel().ForAll(entityId =>
+                            {
+                                typedLayer.UpdateIfSet(entityId, updateAction);
+                            });
                     }
                     else
                     {
@@ -201,10 +205,13 @@ namespace Outrage.Entities
                 {
                     if (parallel)
                     {
-                        setEntityIds.AsParallel().ForAll(entityId =>
+                        foreach (var group in setEntityIds.GroupBy(r => r / capacityStep))
                         {
-                            typedLayer.UpdateIfSet(entityId, updateAction);
-                        });
+                            group.AsParallel().ForAll(entityId =>
+                            {
+                                typedLayer.UpdateIfSet(entityId, updateAction);
+                            });
+                        }
                     }
                     else
                     {
@@ -235,10 +242,13 @@ namespace Outrage.Entities
                 {
                     if (parallel)
                     {
-                        entityIds.AsParallel().ForAll(entityId =>
+                        foreach (var group in entityIds.GroupBy(r => r / capacityStep))
                         {
-                            typedLayer.UpdateIfSet(entityId, updateAction);
-                        });
+                            group.AsParallel().ForAll(entityId =>
+                            {
+                                typedLayer.UpdateIfSet(entityId, updateAction);
+                            });
+                        }
                     }
                     else
                     {
@@ -291,10 +301,14 @@ namespace Outrage.Entities
                 {
                     if (parallel)
                     {
-                        entityIds.AsParallel().ForAll(entityId =>
+                        var entityGroups = entityIds.GroupBy(r => r / capacityStep);
+                        foreach (var group in entityGroups)
                         {
-                            typedLayer.Update(entityId, updateAction);
-                        });
+                            group.AsParallel().ForAll(entityId =>
+                            {
+                                typedLayer.Update(entityId, updateAction);
+                            });
+                        }
                     }
                     else
                     {
@@ -341,11 +355,17 @@ namespace Outrage.Entities
 
             if (parallel)
             {
-                layers.AsParallel().ForAll(layer =>
+                var entityGroups = entityIds.GroupBy(r => r / capacityStep);
+
+                foreach (var layer in layers)
                 {
-                    layer.Value.MarkUnset(entityIds);
-                });
-            } else
+                    entityGroups.AsParallel().ForAll(group =>
+                    {
+                        layer.Value.MarkUnset(group);
+                    });
+                }
+            }
+            else
             {
                 foreach (var layer in layers)
                 {

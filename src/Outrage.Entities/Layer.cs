@@ -200,10 +200,9 @@ namespace Outrage.Entities
         /// <param name="entityIds">list of entity ids</param>
         public void MarkUnset(IEnumerable<long> entityIds)
         {
-            entityIds.AsParallel().ForAll((entityId) =>
-            {
-                MarkUnset(entityId);
-            });
+            foreach (var id in entityIds)
+                MarkUnset(id);
+
         }
 
         /// <summary>

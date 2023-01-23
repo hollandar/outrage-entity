@@ -2,6 +2,7 @@
 using Outrage.Entities.Tests.Entities;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -142,7 +143,7 @@ public class PerformanceTests
             }, true);
 
             // Drop one thousand of them;
-            var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(RECREATE_SIZE);
+            var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(RECREATE_SIZE).ToImmutableSortedSet();
             entitySet.Clear(thousandEntities, true);
 
             // Reinstate and reinitialize one thousand of them
@@ -190,7 +191,7 @@ public class PerformanceTests
             }, false);
 
             // Drop one thousand of them;
-            var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(RECREATE_SIZE);
+            var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(RECREATE_SIZE).ToImmutableSortedSet();
             entitySet.Clear(thousandEntities, false);
 
             // Reinstate and reinitialize one thousand of them
@@ -237,7 +238,7 @@ public class PerformanceTests
         var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done mutating in {millisecondsTaken} milliseconds.");
 
-        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(ENTITIES);
+        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(RECREATE_SIZE).ToImmutableSortedSet();
         startMutating = DateTimeOffset.UtcNow;
 
         // Drop one thousand of them;
@@ -248,7 +249,7 @@ public class PerformanceTests
         startMutating = DateTimeOffset.UtcNow;
 
         // Reinstate and reinitialize one thousand of them
-        var newEntityIds = entitySet.ReserveEntityIds(ENTITIES);
+        var newEntityIds = entitySet.ReserveEntityIds(RECREATE_SIZE);
         entitySet.Mutate<Position>(newEntityIds, (long id, ref Position position) =>
         {
             position.X = 0;
@@ -258,7 +259,7 @@ public class PerformanceTests
         millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done recreating in {millisecondsTaken} milliseconds.");
 
-        var perFrameSpeed = millisecondsTaken / ENTITIES;
+        var perFrameSpeed = millisecondsTaken / RECREATE_SIZE;
         var frameRate = 1000 / perFrameSpeed;
 
         Console.WriteLine($"Effective frame rate: {frameRate} per second.\n");
@@ -290,7 +291,7 @@ public class PerformanceTests
         var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done mutating in {millisecondsTaken} milliseconds.");
 
-        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(ENTITIES);
+        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(RECREATE_SIZE).ToImmutableSortedSet();
         startMutating = DateTimeOffset.UtcNow;
 
         // Drop one thousand of them;
@@ -301,7 +302,7 @@ public class PerformanceTests
         startMutating = DateTimeOffset.UtcNow;
 
         // Reinstate and reinitialize one thousand of them
-        var newEntityIds = entitySet.ReserveEntityIds(ENTITIES);
+        var newEntityIds = entitySet.ReserveEntityIds(RECREATE_SIZE);
         entitySet.Mutate<Position>(newEntityIds, (long id, ref Position position) =>
         {
             position.X = 0;
@@ -311,7 +312,7 @@ public class PerformanceTests
         millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done recreating in {millisecondsTaken} milliseconds.");
 
-        var perFrameSpeed = millisecondsTaken / ENTITIES;
+        var perFrameSpeed = millisecondsTaken / RECREATE_SIZE;
         var frameRate = 1000 / perFrameSpeed;
 
         Console.WriteLine($"Effective frame rate: {frameRate} per second.\n");
