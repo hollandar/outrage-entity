@@ -237,7 +237,7 @@ public class PerformanceTests
         var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done mutating in {millisecondsTaken} milliseconds.");
 
-        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(RECREATE_SIZE);
+        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(ENTITIES);
         startMutating = DateTimeOffset.UtcNow;
 
         // Drop one thousand of them;
@@ -248,7 +248,7 @@ public class PerformanceTests
         startMutating = DateTimeOffset.UtcNow;
 
         // Reinstate and reinitialize one thousand of them
-        var newEntityIds = entitySet.ReserveEntityIds(RECREATE_SIZE);
+        var newEntityIds = entitySet.ReserveEntityIds(ENTITIES);
         entitySet.Mutate<Position>(newEntityIds, (long id, ref Position position) =>
         {
             position.X = 0;
@@ -258,7 +258,7 @@ public class PerformanceTests
         millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done recreating in {millisecondsTaken} milliseconds.");
 
-        var perFrameSpeed = millisecondsTaken / RECREATE_SIZE;
+        var perFrameSpeed = millisecondsTaken / ENTITIES;
         var frameRate = 1000 / perFrameSpeed;
 
         Console.WriteLine($"Effective frame rate: {frameRate} per second.\n");
@@ -290,7 +290,7 @@ public class PerformanceTests
         var millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done mutating in {millisecondsTaken} milliseconds.");
 
-        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(RECREATE_SIZE);
+        var thousandEntities = entitySet.QueryEntitiesWith<Position>().Take(ENTITIES);
         startMutating = DateTimeOffset.UtcNow;
 
         // Drop one thousand of them;
@@ -301,7 +301,7 @@ public class PerformanceTests
         startMutating = DateTimeOffset.UtcNow;
 
         // Reinstate and reinitialize one thousand of them
-        var newEntityIds = entitySet.ReserveEntityIds(RECREATE_SIZE);
+        var newEntityIds = entitySet.ReserveEntityIds(ENTITIES);
         entitySet.Mutate<Position>(newEntityIds, (long id, ref Position position) =>
         {
             position.X = 0;
@@ -311,7 +311,7 @@ public class PerformanceTests
         millisecondsTaken = (DateTimeOffset.UtcNow - startMutating).TotalMilliseconds;
         Console.WriteLine($"Done recreating in {millisecondsTaken} milliseconds.");
 
-        var perFrameSpeed = millisecondsTaken / RECREATE_SIZE;
+        var perFrameSpeed = millisecondsTaken / ENTITIES;
         var frameRate = 1000 / perFrameSpeed;
 
         Console.WriteLine($"Effective frame rate: {frameRate} per second.\n");
